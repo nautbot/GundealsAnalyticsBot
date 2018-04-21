@@ -1,0 +1,16 @@
+{
+    "subreddit" : "GunDeals_Reviews",
+    "commentVoting" : {
+        "positiveVotes" : ["[positive]"],
+        "neutralVotes" : ["[neutral]"],
+        "negativeVotes" : ["[negative]"]
+    },
+    "submissionVoting" : {
+        "positiveVotes" : ["[positive]","[good]","[great]","[amazing]","[7/10]","[8/10]","[9/10]","[10/10]"],
+        "neutralVotes" : ["[neutral]","[meh]","[ok]","[okay]","[con't complain]","[4/10]","[5/10]","[6/10]"],
+        "negativeVotes" : ["[negative]","[bad]","[terrible]","[awful]","[0/10]","[1/10]","[2/10]","[3/10]"]
+    },
+    "submissionParsing" : {
+        "urlFilters" : ["r/gundeals/comments"]
+    }
+}

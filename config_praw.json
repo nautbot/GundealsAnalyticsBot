@@ -1,0 +1,7 @@
+{
+    "client_id" : "client_id",
+    "client_secret" : "client_secret",
+    "redirect" : "http://127.0.0.1:65010/authorize_callback",
+    "username" : "username",
+    "password" : "password"
+}
