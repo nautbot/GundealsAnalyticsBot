@@ -177,8 +177,8 @@ def updateSubmissionVoteSummary(submission):
 \n\n Neutral : {}
 \n\n Negative : {}
 \n\n -----
-\n\n Tell us your experience with this deal or vendor!  Include [Positive], [Neutral] or [Negative] in your comment! [What is this?](https://www.reddit.com/r/GunDeals_Reviews/wiki/gdanalbot)
-\n\n *Last updated at: {} UTC*""".format(positiveVotes, neutralVotes, negativeVotes, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+\n\n Tell us your experience with this deal or vendor!  Include [Positive], [Neutral] or [Negative] in your comment!
+\n\n ^([What is this?](https://www.reddit.com/r/GunDeals_Reviews/wiki/gdanalbot) | *Last updated at: {} UTC*)""".format(positiveVotes, neutralVotes, negativeVotes, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         comments = submission.comments
         for comment in comments:
             if comment.author == r.redditor(username) and comment.is_root:
