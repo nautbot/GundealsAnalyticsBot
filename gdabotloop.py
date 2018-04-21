@@ -10,8 +10,11 @@ with open('config_bot.json') as settingsBotRaw:
     
 
 # Console reporting commands
-def logAppEvent(message):
-    print("{} - {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), message))
+def logAppEvent(message, e=None):
+    if not e is None:
+        print("{} - {}: ".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), message), e)
+    else:
+        print("{} - {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), message))
 
 
 # Application info
@@ -70,7 +73,7 @@ def findCommentVote(comment):
                 return Vote.NEGATIVE
         return None
     except Exception as e:
-        print('findCommentVote : ', e)
+        logAppEvent('findCommentVote : ', e)
         pass
 
 
@@ -88,7 +91,7 @@ def findSubmissionVote(submission):
                 return Vote.NEGATIVE
         return None
     except Exception as e:
-        print('findCommentVote : ', e)
+        logAppEvent('findCommentVote : ', e)
         pass
 
 
@@ -112,7 +115,7 @@ def collectCommentVotes(comment, submissionid):
         for reply in replies:
             collectCommentVotes(reply, submissionid)
     except Exception as e:
-        print('collectCommentVotes : ', e)
+        logAppEvent('collectCommentVotes : ', e)
         pass
 
 
@@ -124,7 +127,7 @@ def findSubmissionLinkURL(submission):
                 if f in url: return url
         return ''
     except Exception as e:
-        print('findSubmissionLinkURL : ', e)
+        logAppEvent('findSubmissionLinkURL : ', e)
         pass
 
 
@@ -153,7 +156,7 @@ def collectSubmissionVotes(submission):
         for comment in comments:
             collectCommentVotes(comment, submission.id)
     except Exception as e:
-        print('collectSubmissionVotes : ', e)
+        logAppEvent('collectSubmissionVotes : ', e)
         pass
 
 
@@ -163,7 +166,7 @@ def getVoteCount(submissionid, voteType):
         voteCount = cur.fetchone()
         return int(voteCount[0])
     except Exception as e:
-        print('getVoteCount : ', e)
+        logAppEvent('getVoteCount : ', e)
         pass
 
 
@@ -178,7 +181,7 @@ def updateSubmissionVoteSummary(submission):
 \n\n Negative : {}
 \n\n -----
 \n\n Tell us your experience with this deal or vendor!  Include [Positive], [Neutral] or [Negative] in your comment!
-\n\n ^([What is this?](https://www.reddit.com/r/GunDeals_Reviews/wiki/gdanalbot) | *Last updated at: {} UTC*)""".format(positiveVotes, neutralVotes, negativeVotes, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+\n\n [What is this?](https://www.reddit.com/r/GunDeals_Reviews/wiki/gdanalbot) ^(*Last updated at: {} UTC*)""".format(positiveVotes, neutralVotes, negativeVotes, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         comments = submission.comments
         for comment in comments:
             if comment.author == r.redditor(username) and comment.is_root:
@@ -187,7 +190,7 @@ def updateSubmissionVoteSummary(submission):
         reply = submission.reply(summaryBody)
         reply.mod.distinguish(how='yes', sticky=True)
     except Exception as e:
-        print('updateSubmissionVoteSummary : ', e)
+        logAppEvent('updateSubmissionVoteSummary : ', e)
         pass
 
 
@@ -198,7 +201,7 @@ def scanSubmissions():
             updateSubmissionVoteSummary(submission)
             time.sleep(2)
     except Exception as e:
-        print('scanPosts : ', e)
+        logAppEvent('scanSubmissions : ', e)
         pass
 
 
@@ -206,7 +209,7 @@ def scan():
     try:
         scanSubmissions()
     except Exception as e:
-        print('scan : ', e)
+        logAppEvent('scan : ', e)
         pass
 
 
@@ -217,5 +220,5 @@ while True:
         time.sleep(10)
         if int(time.time()) - startTime > 604800: break
     except Exception as e:
-        print('main :', e)
+        logAppEvent('main :', e)
         pass
