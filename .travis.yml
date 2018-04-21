@@ -1,7 +1,0 @@
-  language: python
-  python:
-    - "3.5"
-  install:
-    - pip install praw
-  script:
-    - py.test
