@@ -4,4 +4,4 @@
   install:
     - pip install praw
   script:
-    - pytest
+    - py.test
