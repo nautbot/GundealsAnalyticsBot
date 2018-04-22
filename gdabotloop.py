@@ -137,7 +137,7 @@ def collectSubmissionVotes(submission):
             cur.execute('SELECT id FROM submissions WHERE id=?', (submission.id,))
             if not cur.fetchone():
                 dealurl = findSubmissionLinkURL(submission)
-                cur.execute('INSERT INTO submissions VALUES(?,?,?,?,?,?,?)', (submission.id, submission.author.name, submission.shortlink, submission.title, dealurl, '', submission.created_utc))
+                cur.execute('INSERT INTO submissions VALUES(?,?,?,?,?,?,?)', (submission.id, submission.author.name, submission.shortlink, submission.title, dealurl, None, submission.created_utc))
                 sql.commit()
             cur.execute('SELECT submissionid FROM votes WHERE submissionid=? and user=?', (submission.id, submission.author.name))
             if not cur.fetchone():
@@ -184,22 +184,27 @@ def updateSubmissionVoteSummary(submission):
 \n\n [^*What* ^*is* ^*this?*](https://www.reddit.com/r/GunDeals_Reviews/wiki/gdanalbot) ^| ^(*Last updated at: {} UTC*)""".format(positiveVotes, neutralVotes, negativeVotes, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         lastUpdate = None
         lastVote = None
-        rows = cur.execute('SELECT updatetime FROM submissions WHERE submissionid=?', (submission.id,))
-        if rows > 0:
-            fetch = cur.fetchone()
+        cur.execute('SELECT updatetime FROM submissions WHERE id=? AND updatetime IS NOT NULL', (submission.id,))
+        fetch = cur.fetchone()
+        if fetch is not None:
             lastUpdate = int(fetch[0])
-        rows = cur.execute('SELECT sqltime FROM votes WHERE submissionid=? ORDER BY sqltime DESC LIMIT 1', (submission.id,))
-        if rows > 0:
-            fetch = cur.fetchone()
+        cur.execute('SELECT sqltime FROM votes WHERE submissionid=? ORDER BY sqltime DESC LIMIT 1', (submission.id,))
+        fetch = cur.fetchone()
+        if fetch is not None:
             lastVote = int(fetch[0])
-        if (lastUpdate is None or lastVote is None) or lastVote > lastUpdate:
+        if lastVote is not None and (lastUpdate is None or lastVote > lastUpdate):
             comments = submission.comments
+            replyFound = False
             for comment in comments:
                 if comment.author == r.redditor(username) and comment.is_root:
                     comment.edit(summaryBody)
-                    return
-            reply = submission.reply(summaryBody)
-            reply.mod.distinguish(how='yes', sticky=True)
+                    replyFound = True
+                    break
+            if not replyFound:
+                reply = submission.reply(summaryBody)
+                reply.mod.distinguish(how='yes', sticky=True)
+            cur.execute('UPDATE submissions SET updatetime=? WHERE id=?', (int(time.time()), submission.id))
+            sql.commit()
     except Exception as e:
         logAppEvent('updateSubmissionVoteSummary : ', e)
         pass
