@@ -1,3 +1,4 @@
 
 *.json
 config_praw.json
+*.db
