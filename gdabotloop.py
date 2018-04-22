@@ -28,7 +28,7 @@ logAppEvent("{} - version {}".format(username, botVersion))
 sql = sqlite3.connect('sql.db')
 logAppEvent('Loaded SQL Database')
 cur = sql.cursor()
-cur.execute('CREATE TABLE IF NOT EXISTS submissions(id TEXT, user TEXT, shortlink TEXT, title TEXT, dealurl TEXT, sqltime TIMESTAMP)')
+cur.execute('CREATE TABLE IF NOT EXISTS submissions(id TEXT, user TEXT, shortlink TEXT, title TEXT, dealurl TEXT, updatetime TIMESTAMP, sqltime TIMESTAMP)')
 logAppEvent('Loaded Submissions')
 cur.execute('CREATE TABLE IF NOT EXISTS votes(submissionid TEXT, commentid TEXT, user TEXT, vote INTEGER, sqltime TIMESTAMP)')
 logAppEvent('Loaded Votes')
@@ -137,7 +137,7 @@ def collectSubmissionVotes(submission):
             cur.execute('SELECT id FROM submissions WHERE id=?', (submission.id,))
             if not cur.fetchone():
                 dealurl = findSubmissionLinkURL(submission)
-                cur.execute('INSERT INTO submissions VALUES(?,?,?,?,?,?)', (submission.id, submission.author.name, submission.shortlink, submission.title, dealurl, submission.created_utc))
+                cur.execute('INSERT INTO submissions VALUES(?,?,?,?,?,?,?)', (submission.id, submission.author.name, submission.shortlink, submission.title, dealurl, '', submission.created_utc))
                 sql.commit()
             cur.execute('SELECT submissionid FROM votes WHERE submissionid=? and user=?', (submission.id, submission.author.name))
             if not cur.fetchone():
@@ -182,13 +182,24 @@ def updateSubmissionVoteSummary(submission):
 \n\n -----
 \n\n Tell us your experience with this deal or vendor!  Include [Positive], [Neutral] or [Negative] in your comment!
 \n\n [^*What* ^*is* ^*this?*](https://www.reddit.com/r/GunDeals_Reviews/wiki/gdanalbot) ^| ^(*Last updated at: {} UTC*)""".format(positiveVotes, neutralVotes, negativeVotes, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        comments = submission.comments
-        for comment in comments:
-            if comment.author == r.redditor(username) and comment.is_root:
-                comment.edit(summaryBody)
-                return
-        reply = submission.reply(summaryBody)
-        reply.mod.distinguish(how='yes', sticky=True)
+        lastUpdate = None
+        lastVote = None
+        rows = cur.execute('SELECT updatetime FROM submissions WHERE submissionid=?', (submission.id,))
+        if rows > 0:
+            fetch = cur.fetchone()
+            lastUpdate = int(fetch[0])
+        rows = cur.execute('SELECT sqltime FROM votes WHERE submissionid=? ORDER BY sqltime DESC LIMIT 1', (submission.id,))
+        if rows > 0:
+            fetch = cur.fetchone()
+            lastVote = int(fetch[0])
+        if (lastUpdate is None or lastVote is None) or lastVote > lastUpdate:
+            comments = submission.comments
+            for comment in comments:
+                if comment.author == r.redditor(username) and comment.is_root:
+                    comment.edit(summaryBody)
+                    return
+            reply = submission.reply(summaryBody)
+            reply.mod.distinguish(how='yes', sticky=True)
     except Exception as e:
         logAppEvent('updateSubmissionVoteSummary : ', e)
         pass
