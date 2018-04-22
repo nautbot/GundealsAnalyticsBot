@@ -98,6 +98,7 @@ def findSubmissionVote(submission):
 def collectCommentVotes(comment, submissionid):
     try:
         if not comment in processedComments and comment.author is not None and comment.author.name != username:
+            comment.refresh()
             cur.execute('SELECT commentid FROM votes WHERE submissionid=? and user=?', (submissionid, comment.author.name))
             if not cur.fetchone():
                 commentVote = findCommentVote(comment)
