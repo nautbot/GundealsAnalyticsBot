@@ -105,6 +105,13 @@ def collectCommentVotes(comment, submissionid):
                 if not commentVote == None:
                     cur.execute('INSERT INTO votes VALUES(?,?,?,?,?)', (submissionid, comment.id, comment.author.name, commentVote.value, comment.created_utc))
                     sql.commit()
+            else:
+                commentVote = findCommentVote(comment)
+                if not commentVote == None:
+                    cur.execute('DELETE FROM votes WHERE submissionid=? and user=?', (submissionid, comment.author.name))
+                    sql.commit()
+                    cur.execute('INSERT INTO votes VALUES(?,?,?,?,?)', (submissionid, comment.id, comment.author.name, commentVote.value, comment.created_utc))
+                    sql.commit()
         processedComments.append(comment)
         replies = comment.replies
         while True:
