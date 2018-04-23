@@ -43,7 +43,7 @@ r = praw.Reddit(
 )
 
 
-logAppEvent("Logged in to reddit as: {}}".format(userAgent))
+logAppEvent("Logged in to reddit as: {}".format(settingsPraw["useragent"]))
 
 
 class Vote(Enum):
