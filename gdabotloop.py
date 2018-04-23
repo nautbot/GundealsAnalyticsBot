@@ -20,9 +20,7 @@ def logAppEvent(message, e=None):
 # Application info
 startTime = int(time.time())
 lastModUpdate = 0
-botVersion = "0.1.0"
 username = settingsPraw["username"]
-logAppEvent("{} - version {}".format(username, botVersion))
 
 
 sql = sqlite3.connect('sql.db')
@@ -36,16 +34,16 @@ sql.commit()
 
 
 r = praw.Reddit(
-    client_id=settingsPraw["client_id"],
-    client_secret=settingsPraw["client_secret"],
+    client_id=settingsPraw["clientID"],
+    client_secret=settingsPraw["clientsecret"],
     redirect=settingsPraw["redirect"],
     username=settingsPraw["username"],
     password=settingsPraw["password"],
-    user_agent="python:com.nauticalmile.{}:v{} (by /u/nauticalmile)".format(username, botVersion)
+    user_agent=settingsPraw["useragent"]
 )
 
 
-logAppEvent("Logged in to reddit as: python:com.{}:v{} (by /u/nauticalmile)".format(username, botVersion))
+logAppEvent("Logged in to reddit as: {}}".format(userAgent))
 
 
 class Vote(Enum):
