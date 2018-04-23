@@ -3,6 +3,6 @@
     "clientsecret" : "clientsecret",
     "redirect" : "http://127.0.0.1:65010/authorize_callback",
     "username" : "username",
-    "password" : "password".
+    "password" : "password",
     "useragent" : "useragent"
 }
