@@ -28,6 +28,7 @@ def logAppEvent(message, e=None):
 
 
 # Application info
+firstRun = True
 startTime = int(time.time())
 lastModUpdate = 0
 username = settingsPraw["username"]
@@ -313,7 +314,7 @@ def updateSubmissionVoteSummary(submission):
         fetch = cur.fetchone()
         if fetch is not None:
             lastVote = int(fetch[0])
-        if lastVote is not None and (lastUpdate is None or lastVote > lastUpdate):
+        if firstRun or (lastVote is not None and (lastUpdate is None or lastVote > lastUpdate)):
             comments = submission.comments
             replyFound = False
             for comment in comments:
@@ -338,7 +339,7 @@ def updateSubmissionVoteSummary(submission):
 
 def scanSubmissions():
     try:
-        for submission in r.subreddit(settingsBot['subreddit']).new(limit=100):
+        for submission in r.subreddit(settingsBot['subreddit']).new(limit=500):
             collectSubmissionVotes(submission)
             updateSubmissionVoteSummary(submission)
             time.sleep(2)
@@ -359,6 +360,7 @@ while True:
     try:
         scan()
         cur.execute("VACUUM")
+        if firstRun: firstRun = False
         time.sleep(10)
     except Exception as e:
         logAppEvent('main :', e)
