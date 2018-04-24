@@ -1,5 +1,6 @@
 {
     "subreddit" : "GunDeals_Reviews",
+    "wikiDoc" : "https://www.reddit.com/r/subreddit/wiki/document",
     "commentVoting" : {
         "positiveVotes" : ["[positive]"],
         "neutralVotes" : ["[neutral]"],
