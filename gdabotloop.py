@@ -202,7 +202,7 @@ def logCommentVote(comment, submissionid):
                             ))
                 sql.commit()
     except Exception as e:
-        logAppEvent('logSubmissionVote : ', e)
+        logAppEvent('logCommentVote : ', e)
         pass
 
 
