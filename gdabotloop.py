@@ -28,6 +28,7 @@ def logAppEvent(message, e=None):
 
 
 # Application info
+firstRun = True
 startTime = int(time.time())
 lastModUpdate = 0
 username = settingsPraw["username"]
@@ -108,6 +109,103 @@ def findSubmissionVote(submission):
         pass
 
 
+def logSubmission(submission):
+    try:
+        # Check if submission entry exists
+        cur.execute(('SELECT id FROM submissions '
+                        'WHERE id=?'),
+                        (submission.id,))
+        # If entry doesn't exist, log submission
+        if not cur.fetchone():
+            dealurl = findSubmissionLinkURL(submission)
+            cur.execute(('INSERT INTO submissions '
+                            'VALUES(?,?,?,?,?,?,?)'),
+                        (
+                            submission.id,
+                            submission.author.name,
+                            submission.shortlink,
+                            submission.title,
+                            dealurl,
+                            None,
+                            submission.created_utc
+                        ))
+            sql.commit()
+    except Exception as e:
+        logAppEvent('logSubmission : ', e)
+        pass
+
+
+def logSubmissionVote(submission):
+    try:
+        if submission in processedSubmissions: return
+        # Check if submission vote entry exists
+        cur.execute(('SELECT submissionid FROM votes '
+                    'WHERE submissionid=? and user=?'),
+                    (
+                        submission.id,
+                        submission.author.name
+                    ))
+        # If entry doesn't exist, log submission vote entry
+        if not cur.fetchone():
+            submissionVote = findSubmissionVote(submission)
+            if not submissionVote == None:
+                cur.execute('INSERT INTO votes VALUES(?,?,?,?,?)',
+                            (
+                                submission.id,
+                                None,
+                                submission.author.name,
+                                submissionVote.value,
+                                submission.created_utc
+                            ))
+                sql.commit()
+    except Exception as e:
+        logAppEvent('logSubmissionVote : ', e)
+        pass
+
+
+def logCommentVote(comment, submissionid):
+    try:
+        if comment in processedComments: return
+        # Check if comment vote entry exists
+        cur.execute(('SELECT commentid FROM votes '
+                    'WHERE submissionid=? and user=?'),
+                    (
+                        submissionid,
+                        comment.author.name
+                    ))
+        if not cur.fetchone():
+            # If entry doesn't exist, log comment vote
+            commentVote = findCommentVote(comment)
+            if not commentVote == None:
+                cur.execute('INSERT INTO votes VALUES(?,?,?,?,?)',
+                            (
+                                submissionid,
+                                comment.id,
+                                comment.author.name,
+                                commentVote.value,
+                                comment.created_utc
+                            ))
+                sql.commit()
+        else:
+            # If entry exists, update to reflect new comment vote
+            commentVote = findCommentVote(comment)
+            if not commentVote == None:
+                cur.execute(('UPDATE votes '
+                            'SET commentid=?, vote=?, sqltime=? '
+                            'WHERE submissionid=? and user=?'),
+                            (
+                                comment.id,
+                                commentVote.value,
+                                comment.created_utc,
+                                submissionid,
+                                comment.author.name
+                            ))
+                sql.commit()
+    except Exception as e:
+        logAppEvent('logSubmissionVote : ', e)
+        pass
+
+
 def collectCommentVotes(comment, submissionid):
     try:
         if (
@@ -116,44 +214,8 @@ def collectCommentVotes(comment, submissionid):
                 and comment.author.name != username
             ):
             comment.refresh()
-            cur.execute(('SELECT commentid FROM votes '
-                        'WHERE submissionid=? and user=?'),
-                        (
-                            submissionid,
-                            comment.author.name
-                        ))
-            if not cur.fetchone():
-                commentVote = findCommentVote(comment)
-                if not commentVote == None:
-                    cur.execute('INSERT INTO votes VALUES(?,?,?,?,?)',
-                                (
-                                    submissionid,
-                                    comment.id,
-                                    comment.author.name,
-                                    commentVote.value,
-                                    comment.created_utc
-                                ))
-                    sql.commit()
-            else:
-                commentVote = findCommentVote(comment)
-                if not commentVote == None:
-                    cur.execute(('DELETE FROM votes '
-                                'WHERE submissionid=? and user=?'),
-                                (
-                                    submissionid,
-                                    comment.author.name
-                                ))
-                    sql.commit()
-                    cur.execute('INSERT INTO votes VALUES(?,?,?,?,?)',
-                                (
-                                    submissionid,
-                                    comment.id,
-                                    comment.author.name,
-                                    commentVote.value,
-                                    comment.created_utc
-                                ))
-                    sql.commit()
-        processedComments.append(comment)
+            logCommentVote(comment, submissionid)
+            processedComments.append(comment)
         replies = comment.replies
         while True:
             try:
@@ -188,41 +250,8 @@ def collectSubmissionVotes(submission):
                 and submission.author is not None
                 and submission.author.name != username
             ):
-            cur.execute(('SELECT id FROM submissions '
-                         'WHERE id=?'),
-                         (submission.id,))
-            if not cur.fetchone():
-                dealurl = findSubmissionLinkURL(submission)
-                cur.execute(('INSERT INTO submissions '
-                             'VALUES(?,?,?,?,?,?,?)'),
-                            (
-                                submission.id,
-                                submission.author.name,
-                                submission.shortlink,
-                                submission.title,
-                                dealurl,
-                                None,
-                                submission.created_utc
-                            ))
-                sql.commit()
-            cur.execute(('SELECT submissionid FROM votes '
-                         'WHERE submissionid=? and user=?'),
-                        (
-                            submission.id,
-                            submission.author.name
-                        ))
-            if not cur.fetchone():
-                submissionVote = findSubmissionVote(submission)
-                if not submissionVote == None:
-                    cur.execute('INSERT INTO votes VALUES(?,?,?,?,?)',
-                                (
-                                    submission.id,
-                                    None,
-                                    submission.author.name,
-                                    submissionVote.value,
-                                    submission.created_utc
-                                ))
-                    sql.commit()
+            logSubmission(submission)
+            logSubmissionVote(submission)
         processedSubmissions.append(submission)
         comments = submission.comments
         while True:
@@ -255,11 +284,11 @@ def updateSubmissionVoteSummary(submission):
         positiveVotes = getVoteCount(submission.id, Vote.POSITIVE)
         neutralVotes = getVoteCount(submission.id, Vote.NEUTRAL)
         negativeVotes = getVoteCount(submission.id, Vote.NEGATIVE)
-        summaryBody = ('**What do other users think?**'
-                      '\n\n**Positive**|**Neutral**|**Negative**'
+        summaryBody = ('#### *What do others think of this deal/vendor?*'
+                      '\n\nPositive|Neutral|Negative'
                       '\n:--:|:--:|:--:'
                       '\n{}|{}|{}'
-                      '\n\n^(Tell us your experience with this deal or vendor! '
+                      '\n\n^(Tell us your experience! '
                       'Include [Positive], [Neutral] or [Negative] in your comment!)'
                       '\n\n [^*What* ^*is* ^*this?*]({}) ^| '
                       '^(*Last updated at: {} UTC*)') \
@@ -285,7 +314,7 @@ def updateSubmissionVoteSummary(submission):
         fetch = cur.fetchone()
         if fetch is not None:
             lastVote = int(fetch[0])
-        if lastVote is not None and (lastUpdate is None or lastVote > lastUpdate):
+        if firstRun or (lastVote is not None and (lastUpdate is None or lastVote > lastUpdate)):
             comments = submission.comments
             replyFound = False
             for comment in comments:
@@ -310,7 +339,7 @@ def updateSubmissionVoteSummary(submission):
 
 def scanSubmissions():
     try:
-        for submission in r.subreddit(settingsBot['subreddit']).new(limit=100):
+        for submission in r.subreddit(settingsBot['subreddit']).new(limit=500):
             collectSubmissionVotes(submission)
             updateSubmissionVoteSummary(submission)
             time.sleep(2)
@@ -331,6 +360,7 @@ while True:
     try:
         scan()
         cur.execute("VACUUM")
+        if firstRun: firstRun = False
         time.sleep(10)
     except Exception as e:
         logAppEvent('main :', e)
