@@ -1,5 +1,11 @@
-import datetime, time, json, sqlite3, praw, re
+import datetime
 from enum import Enum
+import json
+import time
+import re
+
+import praw
+import sqlite3
 
 
 with open('config_praw.json') as settingsPrawRaw:
@@ -9,12 +15,16 @@ with open('config_bot.json') as settingsBotRaw:
     settingsBot = json.load(settingsBotRaw)
     
 
+def getTimestamp():
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
 # Console reporting commands
 def logAppEvent(message, e=None):
     if not e is None:
-        print("{} - {}: ".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), message), e)
+        print("{} - {}: ".format(getTimestamp(), message), e)
     else:
-        print("{} - {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), message))
+        print("{} - {}".format(getTimestamp(), message))
 
 
 # Application info
@@ -26,9 +36,16 @@ username = settingsPraw["username"]
 sql = sqlite3.connect('sql.db')
 logAppEvent('Loaded SQL Database')
 cur = sql.cursor()
-cur.execute('CREATE TABLE IF NOT EXISTS submissions(id TEXT, user TEXT, shortlink TEXT, title TEXT, dealurl TEXT, updatetime TIMESTAMP, sqltime TIMESTAMP)')
+# Create submissions table
+cur.execute('CREATE TABLE IF NOT EXISTS '
+            'submissions(id TEXT, user TEXT, '
+            'shortlink TEXT, title TEXT, dealurl TEXT, '
+            'updatetime TIMESTAMP, sqltime TIMESTAMP)')
 logAppEvent('Loaded Submissions')
-cur.execute('CREATE TABLE IF NOT EXISTS votes(submissionid TEXT, commentid TEXT, user TEXT, vote INTEGER, sqltime TIMESTAMP)')
+# Create votes table
+cur.execute('CREATE TABLE IF NOT EXISTS '
+            'votes(submissionid TEXT, '
+            'commentid TEXT, user TEXT, vote INTEGER, sqltime TIMESTAMP)')
 logAppEvent('Loaded Votes')
 sql.commit()
 
@@ -41,8 +58,6 @@ r = praw.Reddit(
     password=settingsPraw["password"],
     user_agent=settingsPraw["useragent"]
 )
-
-
 logAppEvent("Logged in to reddit as: {}".format(settingsPraw["useragent"]))
 
 
@@ -95,20 +110,48 @@ def findSubmissionVote(submission):
 
 def collectCommentVotes(comment, submissionid):
     try:
-        if not comment in processedComments and comment.author is not None and comment.author.name != username:
+        if (
+                not comment in processedComments
+                and comment.author is not None
+                and comment.author.name != username
+            ):
             comment.refresh()
-            cur.execute('SELECT commentid FROM votes WHERE submissionid=? and user=?', (submissionid, comment.author.name))
+            cur.execute(('SELECT commentid FROM votes '
+                        'WHERE submissionid=? and user=?'),
+                        (
+                            submissionid,
+                            comment.author.name
+                        ))
             if not cur.fetchone():
                 commentVote = findCommentVote(comment)
                 if not commentVote == None:
-                    cur.execute('INSERT INTO votes VALUES(?,?,?,?,?)', (submissionid, comment.id, comment.author.name, commentVote.value, comment.created_utc))
+                    cur.execute('INSERT INTO votes VALUES(?,?,?,?,?)',
+                                (
+                                    submissionid,
+                                    comment.id,
+                                    comment.author.name,
+                                    commentVote.value,
+                                    comment.created_utc
+                                ))
                     sql.commit()
             else:
                 commentVote = findCommentVote(comment)
                 if not commentVote == None:
-                    cur.execute('DELETE FROM votes WHERE submissionid=? and user=?', (submissionid, comment.author.name))
+                    cur.execute(('DELETE FROM votes '
+                                'WHERE submissionid=? and user=?'),
+                                (
+                                    submissionid,
+                                    comment.author.name
+                                ))
                     sql.commit()
-                    cur.execute('INSERT INTO votes VALUES(?,?,?,?,?)', (submissionid, comment.id, comment.author.name, commentVote.value, comment.created_utc))
+                    cur.execute('INSERT INTO votes VALUES(?,?,?,?,?)',
+                                (
+                                    submissionid,
+                                    comment.id,
+                                    comment.author.name,
+                                    commentVote.value,
+                                    comment.created_utc
+                                ))
                     sql.commit()
         processedComments.append(comment)
         replies = comment.replies
@@ -127,7 +170,8 @@ def collectCommentVotes(comment, submissionid):
 
 def findSubmissionLinkURL(submission):
     try:
-        urls = re.findall('https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+', submission.selftext)
+        urls = re.findall('https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+',
+                          submission.selftext)
         for f in settingsBot['submissionParsing']['urlFilters']:
             for url in urls:
                 if f in url: return url
@@ -139,17 +183,45 @@ def findSubmissionLinkURL(submission):
 
 def collectSubmissionVotes(submission):
     try:
-        if not submission in processedSubmissions and submission.author is not None and submission.author.name != username:
-            cur.execute('SELECT id FROM submissions WHERE id=?', (submission.id,))
+        if (
+                not submission in processedSubmissions
+                and submission.author is not None
+                and submission.author.name != username
+            ):
+            cur.execute(('SELECT id FROM submissions '
+                         'WHERE id=?'),
+                         (submission.id,))
             if not cur.fetchone():
                 dealurl = findSubmissionLinkURL(submission)
-                cur.execute('INSERT INTO submissions VALUES(?,?,?,?,?,?,?)', (submission.id, submission.author.name, submission.shortlink, submission.title, dealurl, None, submission.created_utc))
+                cur.execute(('INSERT INTO submissions '
+                             'VALUES(?,?,?,?,?,?,?)'),
+                            (
+                                submission.id,
+                                submission.author.name,
+                                submission.shortlink,
+                                submission.title,
+                                dealurl,
+                                None,
+                                submission.created_utc
+                            ))
                 sql.commit()
-            cur.execute('SELECT submissionid FROM votes WHERE submissionid=? and user=?', (submission.id, submission.author.name))
+            cur.execute(('SELECT submissionid FROM votes '
+                         'WHERE submissionid=? and user=?'),
+                        (
+                            submission.id,
+                            submission.author.name
+                        ))
             if not cur.fetchone():
                 submissionVote = findSubmissionVote(submission)
                 if not submissionVote == None:
-                    cur.execute('INSERT INTO votes VALUES(?,?,?,?,?)', (submission.id, '', submission.author.name, submissionVote.value, submission.created_utc))
+                    cur.execute('INSERT INTO votes VALUES(?,?,?,?,?)',
+                                (
+                                    submission.id,
+                                    None,
+                                    submission.author.name,
+                                    submissionVote.value,
+                                    submission.created_utc
+                                ))
                     sql.commit()
         processedSubmissions.append(submission)
         comments = submission.comments
@@ -168,7 +240,9 @@ def collectSubmissionVotes(submission):
 
 def getVoteCount(submissionid, voteType):
     try:
-        cur.execute('SELECT count(*) FROM votes WHERE submissionid=? and vote=?', (submissionid, voteType.value))
+        cur.execute('SELECT count(*) FROM votes ' \
+                    'WHERE submissionid=? and vote=?',
+                    (submissionid, voteType.value))
         voteCount = cur.fetchone()
         return int(voteCount[0])
     except Exception as e:
@@ -181,20 +255,33 @@ def updateSubmissionVoteSummary(submission):
         positiveVotes = getVoteCount(submission.id, Vote.POSITIVE)
         neutralVotes = getVoteCount(submission.id, Vote.NEUTRAL)
         negativeVotes = getVoteCount(submission.id, Vote.NEGATIVE)
-        summaryBody = """#### **User Experience Summary:**
-\n\n Positive : {}
-\n\n Neutral : {}
-\n\n Negative : {}
-\n\n -----
-\n\n Tell us your experience with this deal or vendor!  Include [Positive], [Neutral] or [Negative] in your comment!
-\n\n [^*What* ^*is* ^*this?*](https://www.reddit.com/r/GunDeals_Reviews/wiki/gdanalbot) ^| ^(*Last updated at: {} UTC*)""".format(positiveVotes, neutralVotes, negativeVotes, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        summaryBody = ('**What do other users think?**'
+                      '\n\n**Positive**|**Neutral**|**Negative**'
+                      '\n:--:|:--:|:--:'
+                      '\n{}|{}|{}'
+                      '\n\n^(Tell us your experience with this deal or vendor! '
+                      'Include [Positive], [Neutral] or [Negative] in your comment!)'
+                      '\n\n [^*What* ^*is* ^*this?*]({}) ^| '
+                      '^(*Last updated at: {} UTC*)') \
+                      .format(
+                                positiveVotes,
+                                neutralVotes,
+                                negativeVotes,
+                                settingsBot['wikiDoc'],
+                                getTimestamp()
+                            )
         lastUpdate = None
         lastVote = None
-        cur.execute('SELECT updatetime FROM submissions WHERE id=? AND updatetime IS NOT NULL', (submission.id,))
+        cur.execute('SELECT updatetime FROM submissions ' \
+                    'WHERE id=? AND updatetime IS NOT NULL', 
+                    (submission.id,))
         fetch = cur.fetchone()
         if fetch is not None:
             lastUpdate = int(fetch[0])
-        cur.execute('SELECT sqltime FROM votes WHERE submissionid=? ORDER BY sqltime DESC LIMIT 1', (submission.id,))
+        cur.execute('SELECT sqltime FROM votes ' \
+                    'WHERE submissionid=? ' \
+                    'ORDER BY sqltime DESC LIMIT 1',
+                    (submission.id,))
         fetch = cur.fetchone()
         if fetch is not None:
             lastVote = int(fetch[0])
@@ -209,7 +296,12 @@ def updateSubmissionVoteSummary(submission):
             if not replyFound:
                 reply = submission.reply(summaryBody)
                 reply.mod.distinguish(how='yes', sticky=True)
-            cur.execute('UPDATE submissions SET updatetime=? WHERE id=?', (int(time.time()), submission.id))
+            cur.execute('UPDATE submissions ' \
+                        'SET updatetime=? WHERE id=?',
+                        (
+                            int(time.time()),
+                            submission.id
+                        ))
             sql.commit()
     except Exception as e:
         logAppEvent('updateSubmissionVoteSummary : ', e)
@@ -240,7 +332,6 @@ while True:
         scan()
         cur.execute("VACUUM")
         time.sleep(10)
-        if int(time.time()) - startTime > 604800: break
     except Exception as e:
         logAppEvent('main :', e)
         pass
